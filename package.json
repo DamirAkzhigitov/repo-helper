@@ -1,0 +1,28 @@
+{
+  "name": "repo-helper",
+  "version": "1.0.0",
+  "description": "A Cloudflare Worker that listens for GitHub issue webhooks and processes repository code with OpenAI.",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "deploy": "wrangler deploy",
+    "format": "prettier . --check",
+    "format:fix": "prettier . --write",
+    "start": "wrangler dev"
+  },
+  "keywords": [
+    "Cloudflare",
+    "Worker"
+  ],
+  "author": "Damir Akzhigitov <damir.ckelet@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@octokit/rest": "^21.1.1",
+    "@types/node": "^22.13.5",
+    "hono": "^4.7.2",
+    "openai": "^4.86.0",
+    "prettier": "^3.5.2",
+    "tsx": "^4.19.3"
+  }
+}
