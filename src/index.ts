@@ -1,17 +1,35 @@
 import { Octokit } from '@octokit/rest';
+
 import { Hono } from 'hono';
 import { OpenAI } from 'openai';
+import { Labels, State } from './enums';
 
 const app = new Hono();
 
-// Cloudflare Worker секреты
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+let OPENAI_API_KEY = '',
+  GITHUB_TOKEN = '';
 
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-async function getRepositoryCode(owner: string, repo: string): Promise<string> {
+const ignorePatterns: string[] = [
+  'pnpm-lock.yaml',
+  'package.json',
+  '.gitignore',
+  'tsconfig.json',
+  '.prettierrc',
+  '.env',
+  '.wrangler',
+  'wrangler.jsonc',
+  'd.ts',
+  'vite',
+  'test',
+  '.editorconfig',
+  '.vscode',
+];
+
+async function getRepositoryCode(owner: string, repo: string) {
+  const octokit = new Octokit({ auth: GITHUB_TOKEN });
+
   const {
     data: { default_branch },
   } = await octokit.repos.get({ owner, repo });
@@ -27,6 +45,17 @@ async function getRepositoryCode(owner: string, repo: string): Promise<string> {
   let combinedCode = '';
   for (const file of tree) {
     if (file.type === 'blob' && file.path) {
+      const shouldIgnore = ignorePatterns.some((pattern) => {
+        if (!file.path) return true;
+        const regex = new RegExp(pattern); // Create a RegExp from the pattern
+        return regex.test(file.path); // Test if pattern matches the file path
+      });
+
+      if (shouldIgnore) {
+        console.log('ignored!', file.path);
+        continue;
+      }
+
       const { data: fileContent } = await octokit.repos.getContent({
         owner,
         repo,
@@ -42,33 +71,45 @@ async function getRepositoryCode(owner: string, repo: string): Promise<string> {
 }
 
 app.post('/webhook', async (c) => {
-  const payload = await c.req.json();
-  if (payload.action !== 'opened' || !payload.issue) {
-    return c.text('Ignored', 200);
-  }
+  const payload = (await c.req.json()) as IssueEvent;
+  // if (payload.action !== 'opened' || !payload.issue) {
+  //   return c.text('Ignored', 200);
+  // }
+  //
+  if (payload.issue.state !== State.Open) return;
 
-  const { title, body, repository } = payload.issue;
+  const { repository } = payload;
+
+  console.log('payload: ', payload);
+
   const owner = repository.owner.login;
   const repo = repository.name;
 
-  const repoCode = await getRepositoryCode(owner, repo);
+  if (payload.issue.labels.includes(Labels.InProgress)) {
+    return c.text('Ignored', 200);
+  }
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an AI assistant helping with code-related tasks.',
-      },
-      { role: 'user', content: `Repository code:\n${repoCode}` },
-      {
-        role: 'user',
-        content: `Task title: ${title}\nTask description: ${body}`,
-      },
-    ],
-  });
+  // const repoCode = await getRepositoryCode(owner, repo);
 
-  return c.json({ reply: response.choices[0].message.content });
+  // console.log('repoCode: ', repoCode);
+  //
+  // const response = await openai.chat.completions.create({
+  //   model: 'gpt-4o',
+  //   messages: [
+  //     {
+  //       role: 'system',
+  //       content: 'You are an AI assistant helping with code-related tasks.',
+  //     },
+  //     { role: 'user', content: `Repository code:\n${repoCode}` },
+  //     {
+  //       role: 'user',
+  //       content: `Task title: ${title}\nTask description: ${body}`,
+  //     },
+  //   ],
+  // });
+  //
+  // return c.json({ reply: response.choices[0].message.content });
+  return c.text('Ignored', 200);
 });
 
 export default app;
