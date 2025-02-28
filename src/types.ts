@@ -1,4 +1,4 @@
-interface IssueEvent {
+export interface IssueEvent {
   action: 'edited';
   issue: Issue;
   changes: Changes;
@@ -6,7 +6,7 @@ interface IssueEvent {
   sender: User;
 }
 
-interface Issue {
+export interface Issue {
   url: string;
   repository_url: string;
   labels_url: string;
@@ -38,7 +38,7 @@ interface Issue {
   state_reason: string | null;
 }
 
-interface User {
+export interface User {
   login: string;
   id: number;
   node_id: string;
@@ -60,7 +60,7 @@ interface User {
   site_admin: boolean;
 }
 
-interface Milestone {
+export interface Milestone {
   url: string;
   html_url: string;
   labels_url: string;
@@ -79,13 +79,13 @@ interface Milestone {
   closed_at: string | null;
 }
 
-interface SubIssuesSummary {
+export interface SubIssuesSummary {
   total: number;
   completed: number;
   percent_completed: number;
 }
 
-interface Reactions {
+export interface Reactions {
   url: string;
   total_count: number;
   '+1': number;
@@ -98,7 +98,7 @@ interface Reactions {
   eyes: number;
 }
 
-interface Changes {
+export interface Changes {
   title?: {
     from: string;
   };
@@ -106,7 +106,7 @@ interface Changes {
   // body?: { from: string };
 }
 
-interface Repository {
+export interface Repository {
   id: number;
   node_id: string;
   name: string;
@@ -187,3 +187,7 @@ interface Repository {
   watchers: number;
   default_branch: string;
 }
+
+export type Env = {
+  Bindings: { GITHUB_TOKEN: string; OPENAI_API_KEY: string };
+};
