@@ -88,16 +88,6 @@ app.post('/webhook', async (c) => {
     }
   }
 
-  const response = await gpt(
-    `Your task is ${title}, full description: ${body}}`,
-    repositoryCodeCache[issue.id],
-    openai,
-  );
-
-  if (!response) {
-    return c.text('Issue not updated', 200);
-  }
-
   try {
     await octokit.issues.addLabels({
       owner,
@@ -108,6 +98,17 @@ app.post('/webhook', async (c) => {
   } catch (e) {
     console.error('error on label update: ', e);
   }
+
+  const response = await gpt(
+    `Your task is ${title}, full description: ${body}}`,
+    repositoryCodeCache[issue.id],
+    openai,
+  );
+
+  if (!response) {
+    return c.text('Issue not updated', 200);
+  }
+
   try {
     await octokit.issues.update({
       owner: owner,
