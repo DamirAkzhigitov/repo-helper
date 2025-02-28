@@ -28,31 +28,33 @@ async function getRepositoryCode(
   });
 
   let combinedCode = '';
-  for (const file of tree) {
-    if (file.type === 'blob' && file.path) {
-      const shouldIgnore = ignorePatterns.some((pattern) => {
-        if (!file.path) return true;
-        const regex = new RegExp(pattern); // Create a RegExp from the pattern
-        return regex.test(file.path); // Test if pattern matches the file path
-      });
+  try {
+    for (const file of tree) {
+      if (file.type === 'blob' && file.path) {
+        const shouldIgnore = ignorePatterns.some((pattern) => {
+          if (!file.path) return true;
+          const regex = new RegExp(pattern); // Create a RegExp from the pattern
+          return regex.test(file.path); // Test if pattern matches the file path
+        });
 
-      if (shouldIgnore) {
-        console.log('ignored!', file.path);
-        continue;
+        if (shouldIgnore) continue;
+
+        const { data: fileContent } = await octokit.repos.getContent({
+          owner,
+          repo,
+          path: file.path,
+        });
+        // @ts-expect-error
+        const content = Buffer.from(fileContent.content, 'base64').toString(
+          'utf-8',
+        );
+        combinedCode += `// ${file.path}\n${content}\n\n`;
       }
-
-      const { data: fileContent } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: file.path,
-      });
-      // @ts-expect-error
-      const content = Buffer.from(fileContent.content, 'base64').toString(
-        'utf-8',
-      );
-      combinedCode += `// ${file.path}\n${content}\n\n`;
     }
+  } catch (e) {
+    console.error('error during getting repository code', e);
   }
+
   return combinedCode;
 }
 
