@@ -1,17 +1,20 @@
-import { Octokit } from '@octokit/rest';
 import { Hono } from 'hono';
-import { OpenAI } from 'openai';
+import { Labels, State } from './enums';
+import { Env, IssueEvent } from './types';
+import { gpt } from './utils/gpt';
+import { useOpenai, useOctokit, Middleware } from './middleware';
+import { ignorePatterns } from './utils/constants';
+import type { Octokit } from '@octokit/rest';
 
-const app = new Hono();
+const app = new Hono<Env>();
 
-// Cloudflare Worker секреты
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const repositoryCodeCache: { [issueId: number]: string } = {};
 
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
-async function getRepositoryCode(owner: string, repo: string): Promise<string> {
+async function getRepositoryCode(
+  owner: string,
+  repo: string,
+  octokit: Octokit,
+) {
   const {
     data: { default_branch },
   } = await octokit.repos.get({ owner, repo });
@@ -25,50 +28,104 @@ async function getRepositoryCode(owner: string, repo: string): Promise<string> {
   });
 
   let combinedCode = '';
-  for (const file of tree) {
-    if (file.type === 'blob' && file.path) {
-      const { data: fileContent } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: file.path,
-      });
-      const content = Buffer.from(fileContent.content, 'base64').toString(
-        'utf-8',
-      );
-      combinedCode += `// ${file.path}\n${content}\n\n`;
+  try {
+    for (const file of tree) {
+      if (file.type === 'blob' && file.path) {
+        const shouldIgnore = ignorePatterns.some((pattern) => {
+          if (!file.path) return true;
+          const regex = new RegExp(pattern); // Create a RegExp from the pattern
+          return regex.test(file.path); // Test if pattern matches the file path
+        });
+
+        if (shouldIgnore) continue;
+
+        const { data: fileContent } = await octokit.repos.getContent({
+          owner,
+          repo,
+          path: file.path,
+        });
+        // @ts-expect-error
+        const content = Buffer.from(fileContent.content, 'base64').toString(
+          'utf-8',
+        );
+        combinedCode += `// ${file.path}\n${content}\n\n`;
+      }
     }
+  } catch (e) {
+    console.error('error during getting repository code', e);
   }
+
   return combinedCode;
 }
 
+app.use(useOctokit);
+app.use(useOpenai);
+
 app.post('/webhook', async (c) => {
-  const payload = await c.req.json();
-  if (payload.action !== 'opened' || !payload.issue) {
+  const payload = (await c.req.json()) as IssueEvent;
+
+  const { openai, octokit } = c.var as Middleware;
+
+  const { repository, issue } = payload;
+
+  if (issue.state !== State.Open || issue.labels.includes(Labels.InProgress)) {
     return c.text('Ignored', 200);
   }
 
-  const { title, body, repository } = payload.issue;
+  const { title, body } = issue;
+
   const owner = repository.owner.login;
   const repo = repository.name;
+  const issueNumber = issue.number;
 
-  const repoCode = await getRepositoryCode(owner, repo);
+  if (!repositoryCodeCache[issue.id]) {
+    try {
+      repositoryCodeCache[issue.id] = await getRepositoryCode(
+        owner,
+        repo,
+        octokit,
+      );
+    } catch (error) {
+      return c.text('Error getting repository code', 500); // Or handle error appropriately
+    }
+  }
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are an AI assistant helping with code-related tasks.',
-      },
-      { role: 'user', content: `Repository code:\n${repoCode}` },
-      {
-        role: 'user',
-        content: `Task title: ${title}\nTask description: ${body}`,
-      },
-    ],
-  });
+  try {
+    await octokit.issues.addLabels({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      labels: ['in-progress'],
+    });
+  } catch (e) {
+    console.error('error on label update: ', e);
+  }
 
-  return c.json({ reply: response.choices[0].message.content });
+  const response = await gpt(
+    `Your task is ${title}, full description: ${body}}`,
+    repositoryCodeCache[issue.id],
+    openai,
+  );
+
+  if (!response) {
+    return c.text('Issue not updated', 200);
+  }
+
+  try {
+    await octokit.issues.update({
+      owner: owner,
+      repo: repo,
+      issue_number: issueNumber,
+      body: `${body}\n\n ${response}`,
+    });
+
+    console.log('Issue updated!');
+
+    return c.text('Issue updated with AI response', 200);
+  } catch (e) {
+    console.error('error on issues update:', e);
+    return c.text('Issue not updated', 200);
+  }
 });
 
 export default app;
