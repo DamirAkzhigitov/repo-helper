@@ -8,7 +8,7 @@ export const gpt = async (
 ) => {
   try {
     const options = {
-      model: 'openai/gpt-4o-mini',
+      model: 'anthropic/claude-3.7-sonnet',
       messages: [
         {
           role: 'user',

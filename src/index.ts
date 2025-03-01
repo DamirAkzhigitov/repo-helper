@@ -5,6 +5,7 @@ import { gpt } from './utils/gpt';
 import { useOpenai, useOctokit, Middleware } from './middleware';
 import { ignorePatterns } from './utils/constants';
 import type { Octokit } from '@octokit/rest';
+import { hasCommonElement } from './utils/helpers';
 
 const app = new Hono<Env>();
 
@@ -62,13 +63,21 @@ app.use(useOctokit);
 app.use(useOpenai);
 
 app.post('/webhook', async (c) => {
+  console.log('c.req: ', c.req);
+
   const payload = (await c.req.json()) as IssueEvent;
 
   const { openai, octokit } = c.var as Middleware;
 
   const { repository, issue } = payload;
 
-  if (issue.state !== State.Open || issue.labels.includes(Labels.InProgress)) {
+  if (
+    issue.state !== State.Open ||
+    hasCommonElement(
+      issue.labels.map(({ name }) => name),
+      [Labels.InProgress, Labels.Documentation],
+    )
+  ) {
     return c.text('Ignored', 200);
   }
 

@@ -10,7 +10,7 @@
     "format": "prettier . --check",
     "format:fix": "prettier . --write",
     "start": "wrangler dev",
-    "serve": "ngrok http 8787"
+    "serve": "ngrok http --url=better-suitably-monkey.ngrok-free.app 8787"
   },
   "keywords": [
     "Cloudflare",
