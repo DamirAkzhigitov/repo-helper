@@ -1,8 +1,8 @@
 export enum Labels {
   InProgress = 'in-progress',
-  Documentation = 'documentation',
+  Documentation = 'documentation'
 }
 
 export enum State {
-  Open = 'open',
+  Open = 'open'
 }
