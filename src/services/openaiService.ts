@@ -33,15 +33,14 @@ export async function generateGptResponse(
   openai: OpenAI,
 ): Promise<string | null> {
   try {
-    const messages = formatPrompt(title, description, codebase);
-
     const options: ChatCompletionCreateParamsNonStreaming = {
       model: 'openai/gpt-4o-mini',
-      messages: messages,
+      messages: formatPrompt(title, description, codebase),
       max_tokens: 10000,
     };
 
     const completion = await openai.chat.completions.create(options);
+
     return completion.choices[0].message.content;
   } catch (error) {
     console.error('Error generating GPT response:', error);

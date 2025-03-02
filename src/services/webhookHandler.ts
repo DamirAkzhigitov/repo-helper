@@ -2,9 +2,14 @@ import { IssueEvent } from '../types';
 import { Octokit } from '@octokit/rest';
 import OpenAI from 'openai';
 import { Labels, State } from '../enums';
-import { getRepositoryCode, addLabelToIssue, updateIssue } from './githubService';
+import {
+  getRepositoryCode,
+  addLabelToIssue,
+  updateIssue,
+} from './githubService';
 import { generateGptResponse } from './openaiService';
 import { ContentfulStatusCode } from 'hono/dist/types/utils/http-status';
+import { hasCommonElement } from '../utils/helpers';
 
 const repositoryCodeCache: { [issueId: number]: string } = {};
 
@@ -14,13 +19,19 @@ interface WebhookHandlerResponse {
 }
 
 function shouldProcessIssue(issue: IssueEvent['issue']): boolean {
-  return issue.state === State.Open && !issue.labels.includes(Labels.InProgress);
+  return (
+    issue.state === State.Open &&
+    !hasCommonElement(
+      issue.labels.map(({ name }) => name),
+      [Labels.InProgress, Labels.Documentation],
+    )
+  );
 }
 
 export async function handleGithubIssueWebhook(
   payload: IssueEvent,
   octokit: Octokit,
-  openai: OpenAI
+  openai: OpenAI,
 ): Promise<WebhookHandlerResponse> {
   const { repository, issue } = payload;
 
@@ -35,7 +46,11 @@ export async function handleGithubIssueWebhook(
 
   if (!repositoryCodeCache[issue.id]) {
     try {
-      repositoryCodeCache[issue.id] = await getRepositoryCode(owner, repo, octokit);
+      repositoryCodeCache[issue.id] = await getRepositoryCode(
+        owner,
+        repo,
+        octokit,
+      );
     } catch (error) {
       console.error('Failed to get repository code:', error);
       return { message: 'Error getting repository code', status: 500 };
@@ -43,7 +58,13 @@ export async function handleGithubIssueWebhook(
   }
 
   try {
-    await addLabelToIssue(owner, repo, issueNumber, [Labels.InProgress], octokit);
+    await addLabelToIssue(
+      owner,
+      repo,
+      issueNumber,
+      [Labels.InProgress],
+      octokit,
+    );
   } catch (error) {
     console.error('Error adding label:', error);
     // Continue processing even if labeling fails
@@ -53,7 +74,7 @@ export async function handleGithubIssueWebhook(
     title,
     body || '',
     repositoryCodeCache[issue.id],
-    openai
+    openai,
   );
 
   if (!gptResponse) {
@@ -66,7 +87,7 @@ export async function handleGithubIssueWebhook(
       repo,
       issueNumber,
       `${body || ''}\n\n ${gptResponse}`,
-      octokit
+      octokit,
     );
 
     console.log('Issue updated successfully');
