@@ -1,48 +1,37 @@
-import { IssueEvent } from '../types'
-import { Octokit } from '@octokit/rest'
-import OpenAI from 'openai'
-import { Labels, State } from '../enums'
-import {
-  getRepositoryCode,
-  addLabelToIssue,
-  updateIssue
-} from './githubService'
-import { generateGptResponse } from './openaiService'
-import { ContentfulStatusCode } from 'hono/dist/types/utils/http-status'
-import { hasCommonElement } from '../utils/helpers'
+import { Labels } from '../enums'
+import { handleDescription, handleTodo } from './hooks'
+
+import type { Octokit } from '@octokit/rest'
+import type { WebhookHandlerResponse } from '../types'
+import type OpenAI from 'openai'
+
+import { getRepositoryCode } from './githubService'
+import { WebhookEvent } from '@octokit/webhooks-types'
 
 const repositoryCodeCache: { [issueId: number]: string } = {}
 
-interface WebhookHandlerResponse {
-  message: string
-  status: ContentfulStatusCode
-}
-
-function shouldProcessIssue(issue: IssueEvent['issue']): boolean {
-  return (
-    issue.state === State.Open &&
-    !hasCommonElement(
-      issue.labels.map(({ name }) => name),
-      [Labels.InProgress, Labels.Documentation]
-    )
-  )
-}
-
 export async function handleGithubIssueWebhook(
-  payload: IssueEvent,
+  payload: WebhookEvent,
   octokit: Octokit,
   openai: OpenAI
 ): Promise<WebhookHandlerResponse> {
+  if (!('issue' in payload)) {
+    return { message: 'Ignored', status: 200 }
+  }
   const { repository, issue } = payload
 
-  if (!shouldProcessIssue(issue)) {
+  const labels = issue?.labels?.map(({ name }) => name)
+
+  if (!labels) {
     return { message: 'Ignored', status: 200 }
   }
 
-  const { title, body } = issue
+  if (labels.includes(Labels.InProgress)) {
+    return { message: 'Ignored', status: 200 }
+  }
+
   const owner = repository.owner.login
   const repo = repository.name
-  const issueNumber = issue.number
 
   if (!repositoryCodeCache[issue.id]) {
     try {
@@ -57,43 +46,25 @@ export async function handleGithubIssueWebhook(
     }
   }
 
-  try {
-    await addLabelToIssue(
-      owner,
-      repo,
-      issueNumber,
-      [Labels.InProgress],
-      octokit
+  if (labels.includes(Labels.Todo)) {
+    return await handleTodo(
+      issue,
+      repository,
+      octokit,
+      openai,
+      repositoryCodeCache[issue.id]
     )
-  } catch (error) {
-    console.error('Error adding label:', error)
-    // Continue processing even if labeling fails
   }
 
-  const gptResponse = await generateGptResponse(
-    title,
-    body || '',
-    repositoryCodeCache[issue.id],
-    openai
-  )
-
-  if (!gptResponse) {
-    return { message: 'Issue not updated - no AI response', status: 200 }
-  }
-
-  try {
-    await updateIssue(
-      owner,
-      repo,
-      issueNumber,
-      `${body || ''}\n\n ${gptResponse}`,
-      octokit
+  if (labels.includes(Labels.PrepDoc)) {
+    return await handleDescription(
+      issue,
+      repository,
+      octokit,
+      openai,
+      repositoryCodeCache[issue.id]
     )
-
-    console.log('Issue updated successfully')
-    return { message: 'Issue updated with AI response', status: 200 }
-  } catch (error) {
-    console.error('Error updating issue:', error)
-    return { message: 'Failed to update issue', status: 500 }
   }
+
+  return { message: 'Ignored', status: 200 }
 }

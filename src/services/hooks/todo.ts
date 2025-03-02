@@ -1,0 +1,84 @@
+import { generateGptResponse } from '../openaiService'
+import { Action, Labels } from '../../enums'
+import { addLabelToIssue, createBranch } from '../githubService'
+import type { Issue, Repository } from '@octokit/webhooks-types'
+
+import type { GitHubAction, WebhookHandlerResponse } from '../../types'
+import type OpenAI from 'openai'
+import type { Octokit } from '@octokit/rest'
+
+export const handleTodo = async (
+  issue: Issue,
+  repository: Repository,
+  octokit: Octokit,
+  openai: OpenAI,
+  repositoryCodeCache: string
+): Promise<WebhookHandlerResponse> => {
+  const { title, body } = issue
+  const owner = repository.owner.login
+  const repo = repository.name
+  const issueNumber = issue.number
+
+  try {
+    await addLabelToIssue(
+      owner,
+      repo,
+      issueNumber,
+      [Labels.InProgress],
+      octokit
+    )
+  } catch (error) {
+    console.error('Error adding label:', error)
+  }
+
+  const gptResponse = await generateGptResponse(
+    title,
+    body || '',
+    repositoryCodeCache,
+    Action.Repository,
+    openai
+  )
+
+  if (!gptResponse) {
+    return { message: 'Issue not updated - no AI response', status: 200 }
+  }
+
+  const { actions } = JSON.parse(gptResponse) as { actions: GitHubAction[] }
+
+  await createBranch('test', 'master', owner, repo, octokit)
+
+  for await (const action of actions) {
+    const actionOptions = {
+      owner,
+      repo,
+      path: action.filePath,
+      content: btoa(action.content),
+      message: action.message,
+      branch: 'test',
+      ...(action.action === 'update' ? { sha: action.sha } : {})
+    }
+
+    await octokit.repos.createOrUpdateFileContents(actionOptions)
+  }
+
+  async function createPullRequest() {
+    try {
+      const { data: pr } = await octokit.rest.pulls.create({
+        owner,
+        repo,
+        title: issue.title,
+        head: 'test',
+        base: 'master',
+        body: issue.body || ''
+      })
+
+      console.log(`Pull request created: ${pr.html_url}`)
+    } catch (error) {
+      console.error('Error creating pull request:', error)
+    }
+  }
+
+  await createPullRequest()
+
+  return { message: 'Issue updated with AI response', status: 200 }
+}

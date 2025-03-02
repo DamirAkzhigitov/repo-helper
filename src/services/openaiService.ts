@@ -1,14 +1,17 @@
 import OpenAI from 'openai'
-import { system } from '../utils/prompt'
 import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam
 } from 'openai/resources/chat'
+import { Action } from '../enums'
+import { promptMap } from '../utils/prompt'
+import { githubActionSchema } from '../schemas'
 
 function formatPrompt(
   title: string,
   description: string,
-  codebase: string
+  codebase: string,
+  system: string
 ): ChatCompletionMessageParam[] {
   return [
     {
@@ -30,13 +33,18 @@ export async function generateGptResponse(
   title: string,
   description: string,
   codebase: string,
+  action: Action,
   openai: OpenAI
 ): Promise<string | null> {
   try {
     const options: ChatCompletionCreateParamsNonStreaming = {
-      model: 'openai/gpt-4o-mini',
-      messages: formatPrompt(title, description, codebase),
+      model: 'google/gemini-2.0-flash-001',
+      messages: formatPrompt(title, description, codebase, promptMap[action]),
       max_tokens: 10000
+    }
+
+    if (Action.Repository === action) {
+      options.response_format = githubActionSchema
     }
 
     const completion = await openai.chat.completions.create(options)

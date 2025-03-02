@@ -114,24 +114,56 @@ export async function getRepositoryCode(
 
     const tree = await getRepositoryTree(owner, repo, defaultBranch, octokit)
 
-    let combinedCode = ''
+    const combinedCode = []
 
     for (const file of tree) {
+      file.sha
       if (file.type === 'blob' && file.path) {
         if (shouldIgnoreFile(file.path)) continue
 
         try {
           const content = await getFileContent(owner, repo, file.path, octokit)
-          combinedCode += `// ${file.path}\n${content}\n\n`
+          combinedCode.push([file.sha, file.path, content])
         } catch (error) {
           console.error(`Error fetching content for ${file.path}:`, error)
         }
       }
     }
 
-    return combinedCode
+    return JSON.stringify(combinedCode)
   } catch (error) {
     console.error('Error getting repository code:', error)
     throw new Error('Failed to fetch repository code')
+  }
+}
+
+export async function createBranch(
+  branch: string,
+  baseBranch: string,
+  owner: string,
+  repo: string,
+  octokit: Octokit
+) {
+  try {
+    // Получаем SHA последнего коммита в основной ветке
+    const { data: baseBranchData } = await octokit.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: baseBranch
+    })
+
+    const latestCommitSha = baseBranchData.commit.sha
+
+    // Создаем новую ветку
+    const { data: newRef } = await octokit.rest.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/${branch}`,
+      sha: latestCommitSha
+    })
+
+    console.log(`Branch '${branch}' created successfully!`)
+  } catch (error) {
+    console.error('Error creating branch:', error)
   }
 }

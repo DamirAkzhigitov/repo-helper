@@ -1,6 +1,8 @@
 export enum Labels {
   InProgress = 'in-progress',
-  Documentation = 'documentation'
+  Documentation = 'documentation',
+  PrepDoc = 'pre-documentation',
+  Todo = 'todo'
 }
 
 export enum State {

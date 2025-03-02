@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
-import { Env, IssueEvent } from './types'
+import { Env } from './types'
 import { useOpenai, useOctokit, Middleware } from './middleware'
 import { handleGithubIssueWebhook } from './services'
+import type { WebhookEvent } from '@octokit/webhooks-types'
 
 const app = new Hono<Env>()
 
@@ -9,7 +10,8 @@ app.use(useOctokit)
 app.use(useOpenai)
 
 app.post('/webhook', async (c) => {
-  const payload = (await c.req.json()) as IssueEvent
+  const payload = (await c.req.json()) as WebhookEvent
+
   const { openai, octokit } = c.var as Middleware
 
   try {
