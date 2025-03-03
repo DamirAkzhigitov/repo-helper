@@ -49,7 +49,8 @@ export const handleDescription = async (
       repo,
       issueNumber,
       `${body || ''}\n\n ${gptResponse}`,
-      octokit
+      octokit,
+      [Labels.Documentation]
     )
 
     console.log('Issue updated successfully')

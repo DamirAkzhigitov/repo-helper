@@ -91,13 +91,15 @@ export async function updateIssue(
   repo: string,
   issueNumber: number,
   body: string,
-  octokit: Octokit
+  octokit: Octokit,
+  labels?: string[]
 ): Promise<void> {
   await octokit.issues.update({
     owner,
     repo,
     issue_number: issueNumber,
-    body
+    body,
+    labels
   })
 }
 
