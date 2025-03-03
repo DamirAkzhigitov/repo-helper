@@ -1,99 +1,70 @@
-import { IssueEvent } from '../types';
-import { Octokit } from '@octokit/rest';
-import OpenAI from 'openai';
-import { Labels, State } from '../enums';
-import {
-  getRepositoryCode,
-  addLabelToIssue,
-  updateIssue,
-} from './githubService';
-import { generateGptResponse } from './openaiService';
-import { ContentfulStatusCode } from 'hono/dist/types/utils/http-status';
-import { hasCommonElement } from '../utils/helpers';
+import { Labels } from '@/enums'
+import { handleDescription, handleTodo } from '@/services/hooks'
 
-const repositoryCodeCache: { [issueId: number]: string } = {};
+import { getRepositoryCode } from '@/services'
+import { WebhookEvent } from '@octokit/webhooks-types'
 
-interface WebhookHandlerResponse {
-  message: string;
-  status: ContentfulStatusCode;
-}
+import type { Octokit } from '@octokit/rest'
+import type { WebhookHandlerResponse } from '@/types'
+import type OpenAI from 'openai'
 
-function shouldProcessIssue(issue: IssueEvent['issue']): boolean {
-  return (
-    issue.state === State.Open &&
-    !hasCommonElement(
-      issue.labels.map(({ name }) => name),
-      [Labels.InProgress, Labels.Documentation],
-    )
-  );
-}
+const repositoryCodeCache: { [issueId: number]: string } = {}
 
 export async function handleGithubIssueWebhook(
-  payload: IssueEvent,
+  payload: WebhookEvent,
   octokit: Octokit,
-  openai: OpenAI,
+  openai: OpenAI
 ): Promise<WebhookHandlerResponse> {
-  const { repository, issue } = payload;
+  if (!('issue' in payload)) {
+    return { message: 'Ignored', status: 200 }
+  }
+  const { repository, issue } = payload
 
-  if (!shouldProcessIssue(issue)) {
-    return { message: 'Ignored', status: 200 };
+  const labels = issue?.labels?.map(({ name }) => name)
+
+  if (!labels) {
+    return { message: 'Ignored', status: 200 }
   }
 
-  const { title, body } = issue;
-  const owner = repository.owner.login;
-  const repo = repository.name;
-  const issueNumber = issue.number;
+  if (labels.includes(Labels.InProgress)) {
+    return { message: 'Ignored', status: 200 }
+  }
+
+  const owner = repository.owner.login
+  const repo = repository.name
 
   if (!repositoryCodeCache[issue.id]) {
     try {
       repositoryCodeCache[issue.id] = await getRepositoryCode(
         owner,
         repo,
-        octokit,
-      );
+        octokit
+      )
     } catch (error) {
-      console.error('Failed to get repository code:', error);
-      return { message: 'Error getting repository code', status: 500 };
+      console.error('Failed to get repository code:', error)
+      return { message: 'Error getting repository code', status: 500 }
     }
   }
 
-  try {
-    await addLabelToIssue(
-      owner,
-      repo,
-      issueNumber,
-      [Labels.InProgress],
+  if (labels.includes(Labels.Todo)) {
+    return await handleTodo(
+      issue,
+      repository,
       octokit,
-    );
-  } catch (error) {
-    console.error('Error adding label:', error);
-    // Continue processing even if labeling fails
+      openai,
+      repositoryCodeCache[issue.id]
+    )
   }
 
-  const gptResponse = await generateGptResponse(
-    title,
-    body || '',
-    repositoryCodeCache[issue.id],
-    openai,
-  );
-
-  if (!gptResponse) {
-    return { message: 'Issue not updated - no AI response', status: 200 };
-  }
-
-  try {
-    await updateIssue(
-      owner,
-      repo,
-      issueNumber,
-      `${body || ''}\n\n ${gptResponse}`,
+  if (labels.includes(Labels.PrepDoc)) {
+    return await handleDescription(
+      issue,
+      repository,
       octokit,
-    );
-
-    console.log('Issue updated successfully');
-    return { message: 'Issue updated with AI response', status: 200 };
-  } catch (error) {
-    console.error('Error updating issue:', error);
-    return { message: 'Failed to update issue', status: 500 };
+      openai,
+      repositoryCodeCache[issue.id]
+    )
   }
+
+  return { message: 'Ignored', status: 200 }
 }

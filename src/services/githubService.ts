@@ -1,5 +1,5 @@
-import { Octokit } from '@octokit/rest';
-import { ignorePatterns } from '../utils/constants';
+import { Octokit } from '@octokit/rest'
+import { ignorePatterns } from '@/utils'
 
 /**
  * Fetches the default branch of a repository
@@ -9,8 +9,10 @@ export async function getDefaultBranch(
   repo: string,
   octokit: Octokit
 ): Promise<string> {
-  const { data: { default_branch } } = await octokit.repos.get({ owner, repo });
-  return default_branch;
+  const {
+    data: { default_branch }
+  } = await octokit.repos.get({ owner, repo })
+  return default_branch
 }
 
 /**
@@ -22,14 +24,16 @@ export async function getRepositoryTree(
   branch: string,
   octokit: Octokit
 ) {
-  const { data: { tree } } = await octokit.git.getTree({
+  const {
+    data: { tree }
+  } = await octokit.git.getTree({
     owner,
     repo,
     tree_sha: branch,
-    recursive: 'true',
-  });
+    recursive: 'true'
+  })
 
-  return tree;
+  return tree
 }
 
 /**
@@ -37,9 +41,9 @@ export async function getRepositoryTree(
  */
 export function shouldIgnoreFile(filePath: string): boolean {
   return ignorePatterns.some((pattern) => {
-    const regex = new RegExp(pattern);
-    return regex.test(filePath);
-  });
+    const regex = new RegExp(pattern)
+    return regex.test(filePath)
+  })
 }
 
 /**
@@ -54,11 +58,11 @@ export async function getFileContent(
   const { data: fileContent } = await octokit.repos.getContent({
     owner,
     repo,
-    path,
-  });
+    path
+  })
 
   // @ts-expect-error
-  return Buffer.from(fileContent.content, 'base64').toString('utf-8');
+  return Buffer.from(fileContent.content, 'base64').toString('utf-8')
 }
 
 /**
@@ -75,8 +79,8 @@ export async function addLabelToIssue(
     owner,
     repo,
     issue_number: issueNumber,
-    labels,
-  });
+    labels
+  })
 }
 
 /**
@@ -87,14 +91,16 @@ export async function updateIssue(
   repo: string,
   issueNumber: number,
   body: string,
-  octokit: Octokit
+  octokit: Octokit,
+  labels?: string[]
 ): Promise<void> {
   await octokit.issues.update({
     owner,
     repo,
     issue_number: issueNumber,
     body,
-  });
+    labels
+  })
 }
 
 /**
@@ -103,31 +109,63 @@ export async function updateIssue(
 export async function getRepositoryCode(
   owner: string,
   repo: string,
-  octokit: Octokit,
+  octokit: Octokit
 ): Promise<string> {
   try {
-    const defaultBranch = await getDefaultBranch(owner, repo, octokit);
+    const defaultBranch = await getDefaultBranch(owner, repo, octokit)
 
-    const tree = await getRepositoryTree(owner, repo, defaultBranch, octokit);
+    const tree = await getRepositoryTree(owner, repo, defaultBranch, octokit)
 
-    let combinedCode = '';
+    const combinedCode = []
 
     for (const file of tree) {
+      file.sha
       if (file.type === 'blob' && file.path) {
-        if (shouldIgnoreFile(file.path)) continue;
+        if (shouldIgnoreFile(file.path)) continue
 
         try {
-          const content = await getFileContent(owner, repo, file.path, octokit);
-          combinedCode += `// ${file.path}\n${content}\n\n`;
+          const content = await getFileContent(owner, repo, file.path, octokit)
+          combinedCode.push([file.sha, file.path, content])
         } catch (error) {
-          console.error(`Error fetching content for ${file.path}:`, error);
+          console.error(`Error fetching content for ${file.path}:`, error)
         }
       }
     }
 
-    return combinedCode;
+    return JSON.stringify(combinedCode)
   } catch (error) {
-    console.error('Error getting repository code:', error);
-    throw new Error('Failed to fetch repository code');
+    console.error('Error getting repository code:', error)
+    throw new Error('Failed to fetch repository code')
+  }
+}
+
+export async function createBranch(
+  branch: string,
+  baseBranch: string,
+  owner: string,
+  repo: string,
+  octokit: Octokit
+) {
+  try {
+    // Получаем SHA последнего коммита в основной ветке
+    const { data: baseBranchData } = await octokit.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: baseBranch
+    })
+
+    const latestCommitSha = baseBranchData.commit.sha
+
+    // Создаем новую ветку
+    const { data: newRef } = await octokit.rest.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/${branch}`,
+      sha: latestCommitSha
+    })
+
+    console.log(`Branch '${branch}' created successfully!`)
+  } catch (error) {
+    console.error('Error creating branch:', error)
   }
 }

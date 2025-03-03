@@ -11,5 +11,5 @@ export const ignorePatterns = [
   'vite',
   'test',
   '.editorconfig',
-  '.vscode',
-];
+  '.vscode'
+]
