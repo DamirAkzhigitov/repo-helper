@@ -13,7 +13,9 @@ app.post('/webhook', async (c) => {
   const { openai, octokit } = c.var as Middleware;
 
   try {
+    console.log('Received webhook event');
     const result = await handleGithubIssueWebhook(payload, octokit, openai);
+    console.log('Webhook handler completed successfully');
     return c.text(result.message, result.status);
   } catch (error) {
     console.error('Error in webhook handler:', error);
