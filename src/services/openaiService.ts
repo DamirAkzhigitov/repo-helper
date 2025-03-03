@@ -1,11 +1,12 @@
 import OpenAI from 'openai'
+import { Action } from '@/enums'
+import { promptMap } from '@/utils'
+import { githubActionSchema } from '@/schemas'
+
 import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam
 } from 'openai/resources/chat'
-import { Action } from '../enums'
-import { promptMap } from '../utils/prompt'
-import { githubActionSchema } from '../schemas'
 
 function formatPrompt(
   title: string,

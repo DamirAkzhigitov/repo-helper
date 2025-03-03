@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest'
-import { ignorePatterns } from '../utils/constants'
+import { ignorePatterns } from '@/utils'
 
 /**
  * Fetches the default branch of a repository

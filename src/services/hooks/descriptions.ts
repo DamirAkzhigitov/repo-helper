@@ -1,9 +1,9 @@
-import { generateGptResponse } from '../openaiService'
-import { Action, Labels } from '../../enums'
-import { addLabelToIssue, updateIssue } from '../githubService'
+import { generateGptResponse } from '@/services'
+import { Action, Labels } from '@/enums'
+import { addLabelToIssue, updateIssue } from '@/services'
 
 import type { Issue, Repository } from '@octokit/webhooks-types'
-import type { WebhookHandlerResponse } from '../../types/handlers'
+import type { WebhookHandlerResponse } from '@/types'
 import type OpenAI from 'openai'
 import type { Octokit } from '@octokit/rest'
 

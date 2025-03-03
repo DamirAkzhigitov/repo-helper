@@ -1,9 +1,9 @@
-import { generateGptResponse } from '../openaiService'
-import { Action, Labels } from '../../enums'
-import { addLabelToIssue, createBranch } from '../githubService'
-import type { Issue, Repository } from '@octokit/webhooks-types'
+import { Action, Labels } from '@/enums'
+import { addLabelToIssue, createBranch, generateGptResponse } from '@/services'
+import { toSnakeCase } from '@/utils'
 
-import type { GitHubAction, WebhookHandlerResponse } from '../../types'
+import type { Issue, Repository } from '@octokit/webhooks-types'
+import type { GitHubAction, WebhookHandlerResponse } from '@/types'
 import type OpenAI from 'openai'
 import type { Octokit } from '@octokit/rest'
 
@@ -45,7 +45,14 @@ export const handleTodo = async (
 
   const { actions } = JSON.parse(gptResponse) as { actions: GitHubAction[] }
 
-  await createBranch('test', 'master', owner, repo, octokit)
+  if (!actions.length) {
+    return { message: 'Issue not updated - no AI response', status: 200 }
+  }
+
+  const prTitle = actions[0].message
+  const branchName = toSnakeCase(prTitle)
+
+  await createBranch(branchName, 'master', owner, repo, octokit)
 
   for await (const action of actions) {
     const actionOptions = {
@@ -54,7 +61,7 @@ export const handleTodo = async (
       path: action.filePath,
       content: btoa(action.content),
       message: action.message,
-      branch: 'test',
+      branch: branchName,
       ...(action.action === 'update' ? { sha: action.sha } : {})
     }
 
@@ -66,8 +73,8 @@ export const handleTodo = async (
       const { data: pr } = await octokit.rest.pulls.create({
         owner,
         repo,
-        title: issue.title,
-        head: 'test',
+        title: prTitle,
+        head: branchName,
         base: 'master',
         body: issue.body || ''
       })

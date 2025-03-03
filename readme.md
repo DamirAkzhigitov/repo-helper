@@ -29,7 +29,7 @@ Ensure you have the following installed:
 
 ### Environment Variables
 
-Set up the required environment variables in your Cloudflare Worker environment:
+Set up the required environment variables in your Cloudflare Worker environment (`.dev.vars`) :
 
 ```sh
 GITHUB_TOKEN=<your_github_token>

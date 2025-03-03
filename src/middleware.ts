@@ -1,5 +1,5 @@
-import { createMiddleware } from 'hono/factory'
 import OpenAI from 'openai'
+import { createMiddleware } from 'hono/factory'
 import { Octokit } from '@octokit/rest'
 
 export type Middleware = {

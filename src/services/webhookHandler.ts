@@ -1,12 +1,12 @@
-import { Labels } from '../enums'
-import { handleDescription, handleTodo } from './hooks'
+import { Labels } from '@/enums'
+import { handleDescription, handleTodo } from '@/services/hooks'
+
+import { getRepositoryCode } from '@/services'
+import { WebhookEvent } from '@octokit/webhooks-types'
 
 import type { Octokit } from '@octokit/rest'
-import type { WebhookHandlerResponse } from '../types'
+import type { WebhookHandlerResponse } from '@/types'
 import type OpenAI from 'openai'
-
-import { getRepositoryCode } from './githubService'
-import { WebhookEvent } from '@octokit/webhooks-types'
 
 const repositoryCodeCache: { [issueId: number]: string } = {}
 
