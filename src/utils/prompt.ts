@@ -2,7 +2,15 @@ import { Action } from '../enums'
 
 export const repositoryFilesStructure = `We will provide repository files as array of arrays, where each array consist of 3 elements [sha, filePath, fileContent]`
 
-export const defaultBase = `You are an expert software development assistant. Your primary task is to generate new or modified code based on task requirements and the context of an existing code repository. You follow instructions precisely and prioritize writing clean, functional, and well-documented code.
+export const defaultBase = `Provide your response as raw markdown, You are an expert software development assistant. Your primary task is to generate new or modified code based on task requirements and the context of an existing code repository. You follow instructions precisely and prioritize writing clean, functional, and well-documented code.
+
+Tech stack: Typscript >=5.0.0, Javascript, ESNext, Nodejs =>20.5.3, Wrangler, Openai
+Code formatting: 
+ - signle quotes: true
+ - use tabs: false
+ - tabs width: 2
+ - semi:  false,
+ - trailingComma: none
 
 Workflow:
 
@@ -35,8 +43,7 @@ export const sysRepositoryActionPrompt = `${defaultBase} ${repositoryFilesStruct
   field "message": git conventional commit message
 
 `
-export const sysIssuesActionPrompt = `${defaultBase} ${repositoryFilesStructure} 5.  Provide Description: You MUST add a well structured markdown description of the changes that show up, down, and how the existing code interacts with new that has been provided
-`
+export const sysIssuesActionPrompt = `${defaultBase} ${repositoryFilesStructure}`
 
 export const promptMap = {
   [Action.Issue]: sysIssuesActionPrompt,
