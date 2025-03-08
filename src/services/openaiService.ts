@@ -27,7 +27,10 @@ function formatPrompt(
       role: 'system',
       content: system
     }
-  ]
+  ].map((message) => ({
+    ...message,
+    content: message.content.replace(/\\t/g, '').replace(/\\n/g, '')
+  }))
 }
 
 export async function generateGptResponse(
@@ -38,13 +41,22 @@ export async function generateGptResponse(
   openai: OpenAI
 ): Promise<string | null> {
   try {
+    const messages = formatPrompt(
+      title,
+      description,
+      codebase,
+      promptMap[action]
+    )
+
     const options: ChatCompletionCreateParamsNonStreaming = {
       model: 'google/gemini-2.0-flash-001',
-      messages: formatPrompt(title, description, codebase, promptMap[action]),
-      max_tokens: 10000
+      messages,
+      max_tokens: 30000,
+      frequency_penalty: 1,
+      presence_penalty: 1
     }
 
-    if (Action.Repository === action) {
+    if (action === Action.Repository) {
       options.response_format = githubActionSchema
     }
 

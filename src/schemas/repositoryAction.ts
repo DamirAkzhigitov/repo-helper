@@ -31,7 +31,7 @@ export const githubActionSchema: ResponseFormatJSONSchema = {
               },
               content: {
                 type: 'string',
-                description: 'content of file, code here'
+                description: 'valid JSON content of file, code here'
               },
               message: {
                 type: 'string',

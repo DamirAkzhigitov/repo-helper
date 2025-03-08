@@ -6,6 +6,7 @@ import type { Issue, Repository } from '@octokit/webhooks-types'
 import type { GitHubAction, WebhookHandlerResponse } from '@/types'
 import type OpenAI from 'openai'
 import type { Octokit } from '@octokit/rest'
+import { encode } from 'js-base64'
 
 export const handleTodo = async (
   issue: Issue,
@@ -49,17 +50,16 @@ export const handleTodo = async (
     return { message: 'Issue not updated - no AI response', status: 200 }
   }
 
-  const prTitle = actions[0].message
-  const branchName = toSnakeCase(prTitle)
+  const branchName = toSnakeCase(title)
 
-  await createBranch(branchName, 'master', owner, repo, octokit)
+  await createBranch(branchName, 'dev', owner, repo, octokit)
 
   for await (const action of actions) {
     const actionOptions = {
       owner,
       repo,
       path: action.filePath,
-      content: btoa(action.content),
+      content: encode(action.content),
       message: action.message,
       branch: branchName,
       ...(action.action === 'update' ? { sha: action.sha } : {})
@@ -73,9 +73,9 @@ export const handleTodo = async (
       const { data: pr } = await octokit.rest.pulls.create({
         owner,
         repo,
-        title: prTitle,
+        title: title,
         head: branchName,
-        base: 'master',
+        base: 'dev',
         body: issue.body || ''
       })
 
