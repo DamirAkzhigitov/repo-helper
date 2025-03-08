@@ -67,7 +67,6 @@ export const handleTodo = async (
 
     await octokit.repos.createOrUpdateFileContents(actionOptions)
   }
-
   async function createPullRequest() {
     try {
       const { data: pr } = await octokit.rest.pulls.create({
