@@ -22,11 +22,15 @@ export async function handleGithubIssueWebhook(
 
   const labels = issue?.labels?.map(({ name }) => name)
 
-  if (!labels) {
+  console.log('handleGithubIssueWebhook, labels: ', labels)
+
+  if (!labels?.length) {
+    console.log('Ignored! (no labels)')
     return { message: 'Ignored', status: 200 }
   }
 
   if (labels.includes(Labels.InProgress)) {
+    console.log('Ignored! (in progress)')
     return { message: 'Ignored', status: 200 }
   }
 
@@ -35,6 +39,7 @@ export async function handleGithubIssueWebhook(
 
   if (!repositoryCodeCache[issue.id]) {
     try {
+      console.log('getting repository code!')
       repositoryCodeCache[issue.id] = await getRepositoryCode(
         owner,
         repo,
@@ -47,6 +52,7 @@ export async function handleGithubIssueWebhook(
   }
 
   if (labels.includes(Labels.Todo)) {
+    console.log('issue include TODO, handleTodo')
     return await handleTodo(
       issue,
       repository,
@@ -57,6 +63,8 @@ export async function handleGithubIssueWebhook(
   }
 
   if (labels.includes(Labels.PrepDoc)) {
+    console.log('issue include PrepDoc, handleDescription')
+
     return await handleDescription(
       issue,
       repository,

@@ -31,6 +31,7 @@ export const handleDescription = async (
     console.error('Error adding label:', error)
   }
 
+  console.log('description, generateGptResponse')
   const gptResponse = await generateGptResponse(
     title,
     body || '',
@@ -39,10 +40,13 @@ export const handleDescription = async (
     openai
   )
 
+  console.log('gptResponse: ', JSON.stringify(gptResponse))
+
   if (!gptResponse) {
     return { message: 'Issue not updated - no AI response', status: 200 }
   }
 
+  console.log('response received, update issue and put label documentation')
   try {
     await updateIssue(
       owner,
