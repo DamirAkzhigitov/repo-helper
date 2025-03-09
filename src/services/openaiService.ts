@@ -17,7 +17,7 @@ function formatPrompt(
   return [
     {
       role: 'user',
-      content: `Your task is ${title}, full description: ${description}}`
+      content: `Our task: ${title}. Full description: ${description}}`
     },
     {
       role: 'user',
@@ -49,11 +49,11 @@ export async function generateGptResponse(
     )
 
     const options: ChatCompletionCreateParamsNonStreaming = {
-      model: 'google/gemini-2.0-flash-001',
+      model: 'google/gemini-2.0-pro-exp-02-05:free',
       messages,
-      max_tokens: 30000,
-      frequency_penalty: 1,
-      presence_penalty: 1
+      max_tokens: 30000
+      //frequency_penalty: 1,
+      //presence_penalty: 1
     }
 
     if (action === Action.Repository) {
@@ -61,6 +61,8 @@ export async function generateGptResponse(
     }
 
     const completion = await openai.chat.completions.create(options)
+
+    console.log('completion: ', JSON.stringify(completion))
 
     return completion.choices[0].message.content
   } catch (error) {

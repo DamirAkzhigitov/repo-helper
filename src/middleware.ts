@@ -10,7 +10,10 @@ export type Middleware = {
 export const useOpenai = createMiddleware(async (c, next) => {
   const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: c.env.OPENAI_API_KEY
+    apiKey: c.env.OPENAI_API_KEY,
+    defaultHeaders: {
+      'X-Title': 'Repo helper'
+    }
   })
 
   c.set('openai', openai)
