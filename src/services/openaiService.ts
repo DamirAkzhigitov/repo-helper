@@ -51,7 +51,7 @@ export async function generateGptResponse(
     const options: ChatCompletionCreateParamsNonStreaming = {
       model: 'google/gemini-2.0-pro-exp-02-05:free',
       messages,
-      max_tokens: 30000
+      max_tokens: 50000
       //frequency_penalty: 1,
       //presence_penalty: 1
     }
