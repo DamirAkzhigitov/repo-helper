@@ -1,3 +1,1 @@
-export type Env = {
-  Bindings: { GITHUB_TOKEN: string; OPENAI_API_KEY: string }
-}
+export type Env = {\n  Bindings: {\n    GITHUB_TOKEN: string\n    OPENAI_API_KEY: string\n    OpenAICache: DurableObjectNamespace\n  }\n}\n
