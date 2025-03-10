@@ -49,7 +49,7 @@ export async function generateGptResponse(
     )
 
     const options: ChatCompletionCreateParamsNonStreaming = {
-      model: 'anthropic/claude-3.7-sonnet',
+      model: 'google/gemini-2.0-pro-exp-02-05:free',
       messages,
       max_tokens: 30000
       //frequency_penalty: 1,
