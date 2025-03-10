@@ -48,10 +48,8 @@ export async function generateGptResponse(
       promptMap[action]
     )
 
-    console.log('before Ai call, messages:', messages)
-
     const options: ChatCompletionCreateParamsNonStreaming = {
-      model: 'google/gemini-2.0-pro-exp-02-05:free',
+      model: 'anthropic/claude-3.7-sonnet',
       messages,
       max_tokens: 30000
       //frequency_penalty: 1,
