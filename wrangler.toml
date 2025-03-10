@@ -1,0 +1,1 @@
+//Add to the end of file\n[[durable_objects.bindings]]\nname = "OpenAICache"\nclass_name = "OpenAICache"\n
