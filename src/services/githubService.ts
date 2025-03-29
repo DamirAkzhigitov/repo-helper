@@ -9,9 +9,7 @@ export async function getDefaultBranch(
   repo: string,
   octokit: Octokit
 ): Promise<string> {
-  const {
-    data: { default_branch }
-  } = await octokit.repos.get({ owner, repo })
+  const { data: { default_branch } } = await octokit.repos.get({ owner, repo })
   return default_branch
 }
 
@@ -24,15 +22,12 @@ export async function getRepositoryTree(
   branch: string,
   octokit: Octokit
 ) {
-  const {
-    data: { tree }
-  } = await octokit.git.getTree({
+  const { data: { tree } } = await octokit.git.getTree({
     owner,
     repo,
     tree_sha: branch,
     recursive: 'true'
   })
-
   return tree
 }
 
@@ -60,7 +55,6 @@ export async function getFileContent(
     repo,
     path
   })
-
   // @ts-expect-error
   return Buffer.from(fileContent.content, 'base64').toString('utf-8')
 }
@@ -113,16 +107,11 @@ export async function getRepositoryCode(
 ): Promise<string> {
   try {
     const defaultBranch = await getDefaultBranch(owner, repo, octokit)
-
     const tree = await getRepositoryTree(owner, repo, defaultBranch, octokit)
-
     const combinedCode = []
-
     for (const file of tree) {
-      file.sha
       if (file.type === 'blob' && file.path) {
         if (shouldIgnoreFile(file.path)) continue
-
         try {
           const content = await getFileContent(owner, repo, file.path, octokit)
           combinedCode.push([file.sha, file.path, content])
@@ -131,7 +120,6 @@ export async function getRepositoryCode(
         }
       }
     }
-
     return JSON.stringify(combinedCode)
   } catch (error) {
     console.error('Error getting repository code:', error)
@@ -153,9 +141,7 @@ export async function createBranch(
       repo,
       branch: baseBranch
     })
-
     const latestCommitSha = baseBranchData.commit.sha
-
     // Создаем новую ветку
     const { data: newRef } = await octokit.rest.git.createRef({
       owner,
@@ -163,9 +149,39 @@ export async function createBranch(
       ref: `refs/heads/${branch}`,
       sha: latestCommitSha
     })
-
     console.log(`Branch '${branch}' created successfully!`)
   } catch (error) {
     console.error('Error creating branch:', error)
+  }
+}
+
+// New function added for fetching repository code from a specific branch
+export async function getRepositoryCodeFromBranch(
+  owner: string,
+  repo: string,
+  branch: string,
+  octokit: Octokit
+): Promise<string> {
+  try {
+    // Retrieve branch data to obtain the commit SHA
+    const { data: branchData } = await octokit.rest.repos.getBranch({ owner, repo, branch })
+    // Fetch the file tree using the commit SHA as the tree reference
+    const tree = await getRepositoryTree(owner, repo, branchData.commit.sha, octokit)
+    const combinedCode = []
+    for (const file of tree) {
+      if (file.type === 'blob' && file.path) {
+        if (shouldIgnoreFile(file.path)) continue
+        try {
+          const content = await getFileContent(owner, repo, file.path, octokit)
+          combinedCode.push([file.sha, file.path, content])
+        } catch (error) {
+          console.error(`Error fetching content for ${file.path}:`, error)
+        }
+      }
+    }
+    return JSON.stringify(combinedCode)
+  } catch (error) {
+    console.error('Error fetching repository code from branch:', error)
+    throw new Error('Failed to fetch repository code from branch')
   }
 }
