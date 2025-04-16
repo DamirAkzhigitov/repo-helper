@@ -49,11 +49,8 @@ export async function generateGptResponse(
     )
 
     const options: ChatCompletionCreateParamsNonStreaming = {
-      model: 'google/gemini-2.0-pro-exp-02-05:free',
-      messages,
-      max_tokens: 50000
-      //frequency_penalty: 1,
-      //presence_penalty: 1
+      model: 'gpt-4.1-mini-2025-04-14',
+      messages
     }
 
     if (action === Action.Repository) {

@@ -26,7 +26,7 @@
     "openai": "^4.86.0",
     "prettier": "^3.5.2",
     "tsx": "^4.19.3",
-    "wrangler": "3.114.0"
+    "wrangler": "4.6.0"
   },
   "dependencies": {
     "js-base64": "^3.7.7"

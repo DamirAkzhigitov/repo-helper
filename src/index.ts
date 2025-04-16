@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
-import { Env } from './types'
-import { handleGithubIssueWebhook } from './services'
-import type { WebhookEvent } from '@octokit/webhooks-types'
+import { handleGithubWebhook } from './services'
 import OpenAI from 'openai'
 import { Octokit } from '@octokit/rest'
+
+import type { WebhookEvent } from '@octokit/webhooks-types'
+import { Env, EnvKeys } from '@/types'
 
 const app = new Hono<Env>()
 
@@ -24,11 +25,7 @@ app.post('/webhook', async (c) => {
 
 const getOpenai = (token: string) =>
   new OpenAI({
-    baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: token,
-    defaultHeaders: {
-      'X-Title': 'Repo helper'
-    }
+    apiKey: token
   })
 
 const useOctokit = (token: string) =>
@@ -37,16 +34,14 @@ const useOctokit = (token: string) =>
   })
 
 export const queue = {
-  async queue(batch: any, env: Env): Promise<void> {
-    const openai = getOpenai(env.OPENAI_API_KEY)
+  async queue(batch: any, env: EnvKeys): Promise<void> {
+    const openai = getOpenai(env.OPENAI_API_KEY_O)
     const octokit = useOctokit(env.GITHUB_TOKEN)
     for (const message of batch.messages) {
       try {
         const { payload } = message.body
-        const result = await handleGithubIssueWebhook(payload, octokit, openai)
-        console.log(
-          `Processed message: ${message.id}, Result: ${result.message}`
-        )
+
+        await handleGithubWebhook(payload, octokit, openai)
         message.ack() // Acknowledge successful processing
       } catch (error) {
         console.error(`Error processing message ${message.id}:`, error)

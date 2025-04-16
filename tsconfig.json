@@ -9,6 +9,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    "types": ["worker-configuration.d.ts", "node"],
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -16,6 +17,9 @@
     "allowJs": true,
     "resolveJsonModule": true
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "worker-configuration.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
